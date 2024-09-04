@@ -15,9 +15,8 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task = db.Column(db.String(200), nullable=False)
 
-# Create the database and table
-@app.before_first_request
-def create_tables():
+# Create the database tables
+with app.app_context():
     db.create_all()
 
 @app.route('/')
