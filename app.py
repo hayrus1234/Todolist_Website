@@ -1,51 +1,45 @@
 from flask import Flask, render_template, request, redirect, url_for
-import sqlite3
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-# Database setup
-def init_db():
-    conn = sqlite3.connect('todo.db')
-    cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY, task TEXT)''')
-    conn.commit()
-    conn.close()
+# Update this section with your actual credentials
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://admin:8428544485@todolist-db.c72qeeoaky6t.ap-southeast-1.rds.amazonaws.com/todolist'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-init_db()
+# Initialize the database
+db = SQLAlchemy(app)
+
+# Database model for tasks
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    task = db.Column(db.String(200), nullable=False)
+
+# Create the database and table
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
 @app.route('/')
 def index():
-    conn = sqlite3.connect('todo.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM tasks')
-    todo_list = cursor.fetchall()
-    conn.close()
+    todo_list = Task.query.all()
     return render_template('index.html', todo_list=todo_list)
 
 @app.route('/add', methods=['POST'])
 def add():
-    task = request.form.get('task')
-    if task:
-        conn = sqlite3.connect('todo.db')
-        cursor = conn.cursor()
-        cursor.execute('INSERT INTO tasks (task) VALUES (?)', (task,))
-        conn.commit()
-        conn.close()
+    task_content = request.form.get('task')
+    if task_content:
+        new_task = Task(task=task_content)
+        db.session.add(new_task)
+        db.session.commit()
     return redirect(url_for('index'))
 
 @app.route('/delete/<int:task_id>')
 def delete(task_id):
-    conn = sqlite3.connect('todo.db')
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
-    conn.commit()
-    conn.close()
+    task_to_delete = Task.query.get_or_404(task_id)
+    db.session.delete(task_to_delete)
+    db.session.commit()
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
-
-
-
-
+    app.run(host='0.0.0.0', port=80, debug=True)
